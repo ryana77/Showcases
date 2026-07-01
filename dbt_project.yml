@@ -1,0 +1,12 @@
+name: 'Showcases'
+version: '1.0.0'
+config-version: 2
+
+model-paths: ["iowa_liquor_sales/models"]
+test-paths: ["iowa_liquor_sales/tests"]
+seed-paths: ["iowa_liquor_sales/seeds"]
+macro-paths: ["macros"]
+
+models: 
+  Showcases:
+    +materialized: view

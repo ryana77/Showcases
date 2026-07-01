@@ -1,0 +1,30 @@
+version: 2
+
+sources:
+  - name: bigquery_public_data
+    database: bigquery-public-data
+    schema: iowa_liquor_sales
+    description: "Public dataset containing wholesale liquor purchase records in Iowa."
+    tables:
+      - name: sales
+        description: "Main transaction table for Iowa liquor sales since 2012."
+        columns:
+          - name: invoice_and_item_number
+            description: "Concatenated invoice and item number forming the unique key."
+            tests:
+              - unique
+              - not_null
+          - name: date
+            description: "Date of order."
+          - name: store_number
+            description: "Unique number assigned to the store."
+          - name: category_name
+            description: "The category of liquor (e.g., Vodkas, Whiskies)."
+          - name: vendor_name
+            description: "The vendor/company supplying the liquor."
+          - name: item_number
+            description: "The item number for the specific liquor."
+          - name: bottles_sold
+            description: "The number of bottles of liquor ordered."
+          - name: sale_dollars
+            description: "Total cost of liquor ordered (bottles sold * state wholesale cost)."
