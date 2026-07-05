@@ -8,7 +8,7 @@ renamed as (
 
     select
         invoice_and_item_number as sales_id,
-        date as sales_date,
+        date as order_date,
         store_number as store_id,
         store_name,
         address as store_address,
@@ -25,13 +25,13 @@ renamed as (
         item_description as product_description,
         pack as bottles_per_case,
         bottle_volume_ml,
-        state_bottle_cost,
-        state_bottle_retail,
-        bottles_sold as state_bottles_sold,
+        state_bottle_cost as wholesale_bottle_cost,
+        state_bottle_retail as wholesale_bottle_retail,
+        bottles_sold as wholesale_bottles_sold,
         -- Wholesale revenue for the State / Wholesale cost for the store
-        sale_dollars as state_wholesale_revenue,
+        sale_dollars as wholesale_revenue_dollars,
         -- Calculate state profit
-        (state_bottle_retail - state_bottle_cost) * bottles_sold as state_profit_dollars,
+        (state_bottle_retail - state_bottle_cost) * bottles_sold as wholesale_profit_dollars,
         volume_sold_liters,
         volume_sold_gallons         
 

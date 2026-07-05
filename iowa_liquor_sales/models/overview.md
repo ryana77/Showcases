@@ -1,4 +1,3 @@
-{% docs __overview__ %}
 # Iowa Liquor Sales Analytics Platform
 
 Welcome to the documentation for my Iowa Liquor Sales showcase. 
@@ -11,4 +10,3 @@ into a highly optimized **Star Schema (Dimensional Model)** inside BigQuery.
 
 ### Data Rigor & Governance:
 Every layer is covered by structural dbt constraints testing for unique IDs, relationship integrity, and logical business constraints (e.g., non-negative financial inputs).
-{% enddocs %}
