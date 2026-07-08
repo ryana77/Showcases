@@ -4,12 +4,11 @@
       "field": "order_date",
       "data_type": "date",
       "granularity": "month"
-    },
-    cluster_by=["store_county", "product_category"]
+    }
 ) }}
 
 with stg_sales as (
-    -- Reference your staging model here
+    -- Reference staging model
     select * from {{ ref('stg_iowa_liquor__sales') }}
 )
 
@@ -19,17 +18,11 @@ select
     order_date,
     store_id,
     product_id,
-    
-    -- Descriptive Fields for easy filtering
-    product_category,
-    vendor_name,
-    store_county,
-    store_city,
 
-    -- Logistical Attributes
-    bottles_per_case,
-    bottle_volume_ml,
-    
+    -- Vendor information - due to limited information not included ina dim table
+    vendor_id,
+    vendor_name,
+   
     -- Quantitative Metrics
     wholesale_bottles_sold,
     volume_sold_liters,

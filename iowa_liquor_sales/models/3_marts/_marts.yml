@@ -12,7 +12,7 @@ models:
           - not_null
       - name: order_date
         data_type: date
-        description: "The order date. Used as the database table partition key."
+        description: "The order date. Used as the database table partition key. Foreign key linking to the dim_date dimension table."
         tests:
           - not_null
       - name: store_id
@@ -22,25 +22,13 @@ models:
           - not_null
       - name: product_id
         data_type: string
-        description: "The category code associated with the liquor ordered.."
-      - name: product_category
+        description: "Foreign key linking to the dim_product dimension table."
+      - name: vendor_id
         data_type: string
-        description: "The broad commercial classification of the liquor (e.g., VODKA, WHISKEY)."
+        description: "The vendor number of the company for the brand of liquor ordered."
       - name: vendor_name
         data_type: string
         description: "The vendor/company supplying the liquor."
-      - name: store_county
-        data_type: string
-        description: "The Iowa county where the purchasing store is located."
-      - name: store_city
-        data_type: string
-        description: "The Iowa city where the purchasing store is located."
-      - name: bottles_per_case
-        data_type: int64
-        description: "The number of bottles contained within a single wholesale shipping case."
-      - name: bottle_volume_ml
-        data_type: int64
-        description: "The volume capacity of an individual liquor bottle measured in milliliters."
       - name: wholesale_bottles_sold
         data_type: int64
         description: "The quantity of individual bottles ordered by the store."
@@ -100,6 +88,77 @@ models:
         data_type: string
         description: "Operational visibility state tagging stores as 'Active' or 'Churned/Inactive' based on a rolling 180-day activity window."
 
+  - name: dim_date
+    description: "Calendar dimension providing reusable date attributes for time-based reporting and analysis across the data warehouse."
+    columns:
+      - name: date_id
+        description: "Calendar date serving as the primary key."
+        data_type: date
+        data_tests:
+          - unique
+          - not_null
+      - name: year
+        description: "Four-digit calendar year."
+        data_type: int64
+      - name: quarter
+        description: "Calendar quarter (1-4)."
+        data_type: int64
+      - name: month
+        description: "Calendar month number (1-12)."
+        data_type: int64
+      - name: month_name
+        description: "Full calendar month name (e.g. January)."
+        data_type: string
+      - name: month_short
+        description: "Abbreviated calendar month name (e.g. Jan)."
+        data_type: string
+      - name: week
+        description: "ISO week number of the year."
+        data_type: int64
+      - name: day
+        description: "Day of the month (1-31)."
+        data_type: int64
+      - name: day_of_week
+        description: "Day of week as an integer (1=Sunday, 7=Saturday in BigQuery)."
+        data_type: int64
+      - name: day_name
+        description: "Full weekday name (e.g. Monday)."
+        data_type: string
+      - name: is_weekend
+        description: "Indicates whether the date falls on a weekend."
+        data_type: boolean
+      - name: year_month
+        description: "Year and month formatted as YYYY-MM."
+        data_type: string
+      - name: year_quarter
+        description: "Year and quarter formatted as YYYY-QN"
+        data_type: string
+
+  - name: dim_product
+    description: ""
+    columns:
+      - name: product_id
+        data_type: string
+        description: "The unique primary key identifying an individual product."
+        data_tests:
+          - unique
+          - not_null
+      - name: product_category_code
+        data_type: string
+        description: "Proudct category code"
+      - name: product_description
+        data_type: string
+        description: "Description of the specific liquor."
+      - name: product_category
+        data_type: string
+        description: "The broad commercial classification of the liquor (e.g., VODKA, WHISKEY)."
+      - name: bottles_per_case
+        data_type: int64
+        description: "The number of bottles contained within a single wholesale shipping case."
+      - name: bottle_volume_ml
+        data_type: int64
+        description: "The volume capacity of an individual liquor bottle measured in milliliters."
+               
   - name: fct_pipeline_health
     description: "A metadata and pipeline audit fact table aggregating data quality exceptions, processing volumes, and source table data freshness metrics."
     columns:

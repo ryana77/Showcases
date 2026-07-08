@@ -19,7 +19,7 @@ renamed as (
         county as store_county,
         category as product_category_code,
         category_name as product_category,
-        vendor_number,
+        vendor_number as vendor_id,
         vendor_name,
         item_number as product_id,
         item_description as product_description,
