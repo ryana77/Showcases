@@ -1,7 +1,7 @@
 with source as (
     select * from {{ source('bigquery_public_data', 'sales') }}
     -- Limits the scan range during development
-    where date >= '2026-01-01'
+    where date >= '2023-01-01'
 ),
 
 renamed as (

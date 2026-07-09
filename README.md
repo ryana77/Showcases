@@ -40,7 +40,7 @@ The focus is on:
 
 | Project | Description | Status |
 |---------|-------------|--------|
-| **Iowa Liquor Sales Analytics** | End-to-end dbt project using the public Iowa Liquor Sales dataset | 🚧 In Progress |
+| [Iowa Liquor Sales Analytics](iowa_liquor_sales/overview.md) | End-to-end dbt project using the public Iowa Liquor Sales dataset | 🚧 In Progress |
 
 More showcase projects will be added over time.
 

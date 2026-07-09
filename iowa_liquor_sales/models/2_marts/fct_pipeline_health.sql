@@ -7,6 +7,7 @@ with stg_sales as (
 metrics as (
     select
         -- Pipeline Freshness
+        min(order_date) as min_data_date,
         max(order_date) as max_data_date,
         current_date() as execution_date,
         date_diff(current_date(), max(order_date), day) as days_since_last_update,

@@ -195,6 +195,9 @@ models:
   - name: fct_pipeline_health
     description: "A metadata and pipeline audit fact table aggregating data quality exceptions, processing volumes, and source table data freshness metrics."
     columns:
+      - name: min_data_date
+        data_type: date
+        description: "The first record date included in the staging model."
       - name: max_data_date
         data_type: date
         description: "The newest record date found in the source dataset. Measures upstream data pipeline latency."
