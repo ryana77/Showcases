@@ -2,7 +2,10 @@ version: 2
 
 models:
   - name: fct_liquor_sales
-    description: "Partitioned and clustered core fact table containing individual line-item B2B wholesale liquor transactions between the State of Iowa and local retail stores."
+    description: "Partitioned core fact table containing individual line-item B2B wholesale liquor transactions between the State of Iowa and local retail stores."
+    config: 
+      contract: 
+        enforced: true
     columns:
       - name: sales_id
         data_type: string
@@ -15,20 +18,37 @@ models:
         description: "The order date. Used as the database table partition key. Foreign key linking to the dim_date dimension table."
         tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_id
       - name: store_id
         data_type: string
         description: "Foreign key linking to the dim_stores dimension table."
         tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_store')
+                field: store_id
       - name: product_id
         data_type: string
         description: "Foreign key linking to the dim_product dimension table."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_product')
+                field: product_id
       - name: vendor_id
         data_type: string
         description: "The vendor number of the company for the brand of liquor ordered."
-      - name: vendor_name
-        data_type: string
-        description: "The vendor/company supplying the liquor."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_vendor')
+                field: vendor_id
       - name: wholesale_bottles_sold
         data_type: int64
         description: "The quantity of individual bottles ordered by the store."
@@ -51,7 +71,20 @@ models:
         data_type: float64
         description: "A calculated metric modeling potential consumer-facing sales, applying an estimated baseline 20% retail store markup over wholesale cost."
 
-  - name: dim_stores
+  - name: dim_vendor
+    description: "A dimension table for the vendor information."
+    columns:
+      - name: vendor_id
+        data_type: string
+        description: "The unique primary key identifying the supplying vendor."
+        tests:
+          - unique
+          - not_null
+      - name: vendor_name
+        data_type: string
+        description: "The vendor/company supplying the liquor." 
+
+  - name: dim_store
     description: "A dimension table compiling holistic performance, lifetime value, physical geography, and operational tier rankings for individual retail stores."
     columns:
       - name: store_id
@@ -135,7 +168,7 @@ models:
         data_type: string
 
   - name: dim_product
-    description: ""
+    description: "A dimension table for all product information."
     columns:
       - name: product_id
         data_type: string

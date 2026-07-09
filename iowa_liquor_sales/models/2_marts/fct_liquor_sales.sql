@@ -18,10 +18,7 @@ select
     order_date,
     store_id,
     product_id,
-
-    -- Vendor information - due to limited information not included ina dim table
     vendor_id,
-    vendor_name,
    
     -- Quantitative Metrics
     wholesale_bottles_sold,
