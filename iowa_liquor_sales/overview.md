@@ -33,7 +33,7 @@ Google BigQuery Public Dataset
 
 <br> The following graph shows the lineage of the dbt models used in this project.
 
-![dbt DAG](assets/iowa_liquor_sales_dag.jpg)
+![dbt DAG](assets/iowa_liquor_sales_dag.png)
 
 <br> 
 
