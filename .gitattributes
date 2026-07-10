@@ -1,0 +1,11 @@
+# 1. Handle line endings automatically for text files
+* text=auto
+
+# 2. Explicitly enforce LF for source code files
+*.sql text eol=lf
+*.py text eol=lf
+
+# 3. Tell Git these are binary and should not be diffed
+*.png binary
+*.jpg binary
+
