@@ -55,8 +55,8 @@ Showcases/
 │
 ├── iowa_liquor_sales/
 │   ├── OVERVIEW.md
+│   ├── assets/
 │   ├── models/
-│   ├── macros/
 │   └── ...
 │
 └── ...
@@ -81,7 +81,7 @@ Every showcase follows software engineering principles including:
 
 ## About Me
 
-I created this repository to document my journey into Analytics Engineering and to demonstrate practical experience through real-world projects.
+I created this repository to document my journey into Data and Analytics Engineering and to demonstrate practical experience through real-world projects.
 
 Each showcase is designed to resemble production-ready analytics workflows rather than isolated SQL exercises.
 
