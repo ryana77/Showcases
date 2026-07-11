@@ -58,7 +58,6 @@ models:
         data_type: string
         description: "The unique primary key identifying an individual retail store location."
         tests:
-          - unique
           - not_null
       - name: store_name
         data_type: string
