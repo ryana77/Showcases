@@ -9,7 +9,7 @@
 This project transforms the public **Iowa Liquor Sales** dataset into an analytics-ready data warehouse using a layered dbt architecture.
 
 The objective is to demonstrate Analytics Engineering best practices by designing a maintainable star schema, 
-implementing automated data quality tests, and delivering business-ready datasets for reporting in Google Looker Studio.
+implementing automated data quality tests, and delivering business-ready datasets for reporting in Google Data Studio.
 
 The final solution follows a modern ELT workflow:
 
@@ -26,7 +26,10 @@ Google BigQuery Public Dataset
      Star Schema (Marts)
             │
             ▼
-      Looker Dashboard
+     Reporting Models
+            │
+            ▼
+      Data Studio Dashboard
 ```
 
 ## dbt DAG
@@ -81,7 +84,9 @@ models/
 
 ├── 1_staging
 │
-└── 2_marts
+├── 2_marts
+│
+└── 3_reporting
 ```
 Note: The intermediate layer was dropped as it is not required for this particular showcase.
 
@@ -110,7 +115,12 @@ dim_store ─── fct_liquor_sales ─── dim_product
                dim_vendor    
 ```
 
----
+### Reporting Layer
+
+While the core warehouse follows a dimensional star schema, dedicated reporting models are created for 
+Google Data Studio.  
+These model pre-join the fact and dimension tables to reduce client-side processing, improve dashboard performance, 
+and keep business logic centralized in dbt.
 
 # Data Model
 
@@ -180,12 +190,15 @@ To ensure one record per product, changing product descriptions in the source da
 by retaining the latest known descriptive attributes based on the most recent transaction.
 
 ---
+## Reporting Tables
 
-### Pipeline Monitoring
+### rpt_liquor_sales_dashboard
+
+The main reporting table for Google Data Studio. Joins the fact table with the dimension tables.
+
+### rpt_pipeline_health (Pipeline Monitoring)
 
 The project also includes a dedicated monitoring model.
-
-#### fct_pipeline_health
 
 Tracks operational metrics including:
 
@@ -213,7 +226,7 @@ Current tests include:
 
 # Dashboard
 
-The mart layer is designed specifically for reporting in **Google Looker Studio**.
+The mart layer is designed specifically for reporting in **Google Data Studio**.
 
 The dashboard will include:
 
