@@ -228,7 +228,7 @@ Current tests include:
 
 The mart layer is designed specifically for reporting in **Google Looker**.
 
-[![Looker Dashboarde](assets/iowa_sales_dashboard.jpg)](https://datastudio.google.com/s/lqpDEqjDORI)
+[![Looker Dashboard](assets/iowa_sales_dashboard.jpg)](https://datastudio.google.com/s/lqpDEqjDORI)
 
 The dashboard includes:
 
