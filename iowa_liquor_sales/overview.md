@@ -9,7 +9,7 @@
 This project transforms the public **Iowa Liquor Sales** dataset into an analytics-ready data warehouse using a layered dbt architecture.
 
 The objective is to demonstrate Analytics Engineering best practices by designing a maintainable star schema, 
-implementing automated data quality tests, and delivering business-ready datasets for reporting in Google Data Studio.
+implementing automated data quality tests, and delivering business-ready datasets for reporting in Google Looker.
 
 The final solution follows a modern ELT workflow:
 
@@ -29,7 +29,7 @@ Google BigQuery Public Dataset
      Reporting Models
             │
             ▼
-      Data Studio Dashboard
+    Google Looker Dashboard
 ```
 
 ## dbt DAG
@@ -118,7 +118,7 @@ dim_store ─── fct_liquor_sales ─── dim_product
 ### Reporting Layer
 
 While the core warehouse follows a dimensional star schema, dedicated reporting models are created for 
-Google Data Studio.  
+Google Looker.  
 These model pre-join the fact and dimension tables to reduce client-side processing, improve dashboard performance, 
 and keep business logic centralized in dbt.
 
@@ -194,7 +194,7 @@ by retaining the latest known descriptive attributes based on the most recent tr
 
 ### rpt_liquor_sales_dashboard
 
-The main reporting table for Google Data Studio. Joins the fact table with the dimension tables.
+The main reporting table for Google Looker. Joins the fact table with the dimension tables.
 
 ### rpt_pipeline_health (Pipeline Monitoring)
 
@@ -226,17 +226,17 @@ Current tests include:
 
 # Dashboard
 
-The mart layer is designed specifically for reporting in **Google Data Studio**.
+The mart layer is designed specifically for reporting in **Google Looker**.
 
-The dashboard will include:
+[![Looker Dashboard](assets/iowa_sales_dashboard.jpg)](https://datastudio.google.com/s/lqpDEqjDORI)
+
+The dashboard includes:
 
 - Executive KPI overview
-- Revenue trends
+- Revenue/profit trends
 - Profit analysis
-- Product performance
-- Store performance
 - Geographic sales distribution
-- Interactive filtering
+- Pipeline and data metrics
 
 ---
 
@@ -276,4 +276,4 @@ The dashboard will include:
 
 # Project Status
 
-**Status:** 🚧 Active Development
+**Status:** ✅ Released (Maintenance Mode)

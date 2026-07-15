@@ -33,14 +33,15 @@ The focus is on:
 | SQL | Data modeling |
 | YAML | Testing & documentation |
 | Git & GitHub | Version control |
+| Google Looker | BI and data analytics platform |
 
 ---
 
 # Showcase Projects
 
-| Project | Description | Status |
-|---------|-------------|--------|
-| [Iowa Liquor Sales Analytics](iowa_liquor_sales/overview.md) | End-to-end dbt project using the public Iowa Liquor Sales dataset | 🚧 In Progress |
+| Project | Description | Dashboard Link | Status |
+|---------|-------------|----------------|--------|
+| [Iowa Liquor Sales Analytics](iowa_liquor_sales/overview.md) | End-to-end dbt project using the public Iowa Liquor Sales dataset |[Iowa Liquor Sales Dashboard](https://datastudio.google.com/s/lqpDEqjDORI)| ✅ Released (Maintenance Mode) |
 
 More showcase projects will be added over time.
 
