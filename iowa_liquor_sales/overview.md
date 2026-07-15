@@ -228,15 +228,15 @@ Current tests include:
 
 The mart layer is designed specifically for reporting in **Google Looker**.
 
-The dashboard will include:
+[![Looker Dashboarde](assets/iowa_liquor_dashboard.jpg)](https://datastudio.google.com/s/lqpDEqjDORI)
+
+The dashboard includes:
 
 - Executive KPI overview
-- Revenue trends
+- Revenue/profit trends
 - Profit analysis
-- Product performance
-- Store performance
 - Geographic sales distribution
-- Interactive filtering
+- Pipeline and data metrics
 
 ---
 
@@ -276,4 +276,4 @@ The dashboard will include:
 
 # Project Status
 
-**Status:** 🚧 Active Development
+**Status:** 🚧 Maintenance

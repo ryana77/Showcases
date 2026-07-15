@@ -33,6 +33,7 @@ The focus is on:
 | SQL | Data modeling |
 | YAML | Testing & documentation |
 | Git & GitHub | Version control |
+| Google Looker | BI and data analytics platform |
 
 ---
 
