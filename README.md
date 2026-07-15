@@ -39,9 +39,9 @@ The focus is on:
 
 # Showcase Projects
 
-| Project | Description | Status |
-|---------|-------------|--------|
-| [Iowa Liquor Sales Analytics](iowa_liquor_sales/overview.md) | End-to-end dbt project using the public Iowa Liquor Sales dataset |✅ Released (Maintenance Mode) |
+| Project | Description | Dashboard Link | Status |
+|---------|-------------|----------------|--------|
+| [Iowa Liquor Sales Analytics](iowa_liquor_sales/overview.md) | End-to-end dbt project using the public Iowa Liquor Sales dataset |[Iowa Liquor Sales Dashboard](https://datastudio.google.com/s/lqpDEqjDORI)| ✅ Released (Maintenance Mode) |
 
 More showcase projects will be added over time.
 
