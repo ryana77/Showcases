@@ -47,24 +47,29 @@ def fetch_entsoe_data():
 
     print(f"Fetching ENTSO-E data for {COUNTRY_CODE} from {start} to {end}...")
 
-    # Query API (Returns Pandas Series indexed by UTC timestamp)
+    # Query API
     actual_load = client.query_load(COUNTRY_CODE, start=start, end=end)
     forecast_load = client.query_load_forecast(COUNTRY_CODE, start=start, end=end)
 
-    # Combine into a single DataFrame
-    df = pd.DataFrame({
-        'actual_load': actual_load,
-        'forecasted_load': forecast_load
-    }).reset_index()
+    # Ensure inputs are Series for clean concat (handles 1-col DataFrames safely)
+    if isinstance(actual_load, pd.DataFrame):
+        actual_load = actual_load.squeeze()
+    if isinstance(forecast_load, pd.DataFrame):
+        forecast_load = forecast_load.squeeze()
 
-    # Rename index column to raw_timestamp
+    # Concatenate side-by-side along the DatetimeIndex
+    df = pd.concat([actual_load, forecast_load], axis=1)
+    df.columns = ['actual_load', 'forecasted_load']
+
+    # Reset index so timestamp becomes a regular column
+    df = df.reset_index()
     df.rename(columns={df.columns[0]: 'raw_timestamp'}, inplace=True)
     df['area_code'] = COUNTRY_CODE
 
-    # Convert pandas Timestamp to ISO string format for BigQuery ingestion
+    # Convert timestamp index to UTC formatted string for BigQuery
     df['raw_timestamp'] = df['raw_timestamp'].dt.tz_convert('UTC').dt.strftime('%Y-%m-%d %H:%M:%S UTC')
 
-    print(f"Retrieved {len(df)} hourly records.")
+    print(f"Retrieved {len(df)} hourly records successfully.")
     return df
 
 # ------------------------------------------------------------------------------
