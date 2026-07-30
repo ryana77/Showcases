@@ -55,8 +55,10 @@ def process_load():
     df.columns = ['actual_load', 'forecasted_load']
     df = df.reset_index().rename(columns={df.columns[0]: 'raw_timestamp'})
     df['area_code'] = COUNTRY_CODE
-    df['raw_timestamp'] = df['raw_timestamp'].dt.tz_convert('UTC').dt.strftime('%Y-%m-%d %H:%M:%S UTC')
-
+    # Convert to datetime explicitly before using the .dt accessor
+    df['raw_timestamp'] = pd.to_datetime(df['raw_timestamp'], utc=True)
+    df['raw_timestamp'] = df['raw_timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S UTC')
+    
     temp_table = f"{GCP_PROJECT_ID}.{DATASET_ID}.stg_temp_load"
     target_table = f"{GCP_PROJECT_ID}.{DATASET_ID}.raw_entsoe_load"
     
@@ -140,7 +142,9 @@ def process_cross_border_flows():
             print(f"Warning: Could not fetch flows {COUNTRY_CODE} -> {neighbor}: {e}")
 
     df_flows = pd.DataFrame(flow_records)
-    df_flows['raw_timestamp'] = df_flows['raw_timestamp'].dt.tz_convert('UTC').dt.strftime('%Y-%m-%d %H:%M:%S UTC')
+    # Convert to datetime explicitly before using the .dt accessor
+    df_flows['raw_timestamp'] = pd.to_datetime(df_flows['raw_timestamp'], utc=True)
+    df_flows['raw_timestamp'] = df_flows['raw_timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S UTC')
     df_flows.dropna(subset=['flow_mw'], inplace=True)
 
     temp_table = f"{GCP_PROJECT_ID}.{DATASET_ID}.stg_temp_flows"
