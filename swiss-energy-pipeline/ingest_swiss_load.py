@@ -108,12 +108,24 @@ def process_generation():
     if isinstance(gen_df.columns, pd.MultiIndex):
         gen_df = gen_df.xs('Actual Aggregated', axis=1, level=1, drop_level=True)
 
+    # Move timestamp index to a regular column
+    df_long = gen_df.reset_index()
+    timestamp_col_name = df_long.columns[0]
+    df_long.rename(columns={timestamp_col_name: 'raw_timestamp'}, inplace=True)
+
     # Melt dataframe from wide (fuel types as columns) to long format
-    df_long = gen_df.reset_index().rename(columns={gen_df.index.name or gen_df.columns[0]: 'raw_timestamp'})
-    df_long = pd.melt(df_long, id_vars=['raw_timestamp'], var_name='production_type', value_name='actual_generation_mw')
+    df_long = pd.melt(
+        df_long, 
+        id_vars=['raw_timestamp'], 
+        var_name='production_type', 
+        value_name='actual_generation_mw'
+    )
+    
+    # FIX: Convert raw_timestamp explicitly to datetime before using .dt
+    df_long['raw_timestamp'] = pd.to_datetime(df_long['raw_timestamp'], utc=True)
+    df_long['raw_timestamp'] = df_long['raw_timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S UTC')
     
     df_long['area_code'] = COUNTRY_CODE
-    df_long['raw_timestamp'] = df_long['raw_timestamp'].dt.tz_convert('UTC').dt.strftime('%Y-%m-%d %H:%M:%S UTC')
     df_long.dropna(subset=['actual_generation_mw'], inplace=True)
 
     temp_table = f"{GCP_PROJECT_ID}.{DATASET_ID}.stg_temp_gen"
@@ -122,13 +134,20 @@ def process_generation():
     sql = f"""
     MERGE INTO `{target_table}` T
     USING (
-      SELECT TIMESTAMP(raw_timestamp) AS timestamp_utc, area_code, production_type,
-             CAST(actual_generation_mw AS NUMERIC) AS actual_generation_mw
+      SELECT 
+        TIMESTAMP(raw_timestamp) AS timestamp_utc, 
+        area_code, 
+        production_type,
+        CAST(actual_generation_mw AS NUMERIC) AS actual_generation_mw
       FROM `{temp_table}`
     ) S ON T.timestamp_utc = S.timestamp_utc AND T.area_code = S.area_code AND T.production_type = S.production_type
-    WHEN MATCHED THEN UPDATE SET actual_generation_mw = S.actual_generation_mw, ingested_at = CURRENT_TIMESTAMP()
-    WHEN NOT MATCHED THEN INSERT (timestamp_utc, area_code, production_type, actual_generation_mw, ingested_at)
-    VALUES (S.timestamp_utc, S.area_code, S.production_type, S.actual_generation_mw, CURRENT_TIMESTAMP());
+    WHEN MATCHED THEN 
+      UPDATE SET 
+        actual_generation_mw = S.actual_generation_mw, 
+        ingested_at = CURRENT_TIMESTAMP()
+    WHEN NOT MATCHED THEN 
+      INSERT (timestamp_utc, area_code, production_type, actual_generation_mw, ingested_at)
+      VALUES (S.timestamp_utc, S.area_code, S.production_type, S.actual_generation_mw, CURRENT_TIMESTAMP());
     """
     run_bq_merge(df_long, temp_table, sql)
     print("✓ Generation data merged successfully.")
