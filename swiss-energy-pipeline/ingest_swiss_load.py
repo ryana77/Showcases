@@ -51,28 +51,47 @@ def process_load():
     if isinstance(actual, pd.DataFrame): actual = actual.squeeze()
     if isinstance(forecast, pd.DataFrame): forecast = forecast.squeeze()
 
+    # Join actual and forecasted load
     df = pd.concat([actual, forecast], axis=1)
+    
+    # 1. Force exact column names on the joined DataFrame
     df.columns = ['actual_load', 'forecasted_load']
-    df = df.reset_index().rename(columns={df.columns[0]: 'raw_timestamp'})
-    df['area_code'] = COUNTRY_CODE
-    # Convert to datetime explicitly before using the .dt accessor
+
+    # 2. Reset index to move timestamp out of index into a column
+    df = df.reset_index()
+    
+    # 3. Rename the timestamp column explicitly
+    df.columns.values[0] = 'raw_timestamp'
+    
+    # 4. Standardize timestamps and add area_code
     df['raw_timestamp'] = pd.to_datetime(df['raw_timestamp'], utc=True)
     df['raw_timestamp'] = df['raw_timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S UTC')
-    
+    df['area_code'] = COUNTRY_CODE
+
+    # Ensure all column names are clean and lowercase
+    df.columns = df.columns.str.lower()
+
     temp_table = f"{GCP_PROJECT_ID}.{DATASET_ID}.stg_temp_load"
     target_table = f"{GCP_PROJECT_ID}.{DATASET_ID}.raw_entsoe_load"
     
     sql = f"""
     MERGE INTO `{target_table}` T
     USING (
-      SELECT TIMESTAMP(raw_timestamp) AS timestamp_utc, area_code,
-             CAST(actual_load AS NUMERIC) AS actual_load_mw,
-             CAST(forecasted_load AS NUMERIC) AS forecasted_load_mw
+      SELECT 
+        TIMESTAMP(raw_timestamp) AS timestamp_utc, 
+        area_code,
+        CAST(actual_load AS NUMERIC) AS actual_load_mw,
+        CAST(forecasted_load AS NUMERIC) AS forecasted_load_mw
       FROM `{temp_table}`
     ) S ON T.timestamp_utc = S.timestamp_utc AND T.area_code = S.area_code
-    WHEN MATCHED THEN UPDATE SET actual_load_mw = S.actual_load_mw, forecasted_load_mw = S.forecasted_load_mw, ingested_at = CURRENT_TIMESTAMP()
-    WHEN NOT MATCHED THEN INSERT (timestamp_utc, area_code, actual_load_mw, forecasted_load_mw, ingested_at)
-    VALUES (S.timestamp_utc, S.area_code, S.actual_load_mw, S.forecasted_load_mw, CURRENT_TIMESTAMP());
+    WHEN MATCHED THEN 
+      UPDATE SET 
+        actual_load_mw = S.actual_load_mw, 
+        forecasted_load_mw = S.forecasted_load_mw, 
+        ingested_at = CURRENT_TIMESTAMP()
+    WHEN NOT MATCHED THEN 
+      INSERT (timestamp_utc, area_code, actual_load_mw, forecasted_load_mw, ingested_at)
+      VALUES (S.timestamp_utc, S.area_code, S.actual_load_mw, S.forecasted_load_mw, CURRENT_TIMESTAMP());
     """
     run_bq_merge(df, temp_table, sql)
     print("✓ Load data merged successfully.")
