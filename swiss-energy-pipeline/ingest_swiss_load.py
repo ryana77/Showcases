@@ -1,132 +1,167 @@
 import os
-import datetime
 import pandas as pd
 from entsoe import EntsoePandasClient
 from google.cloud import bigquery
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ------------------------------------------------------------------------------
 # 1. CONFIGURATION
 # ------------------------------------------------------------------------------
-# 1. Fetch values from environment variables
 ENTSOE_API_KEY = os.getenv("ENTSOE_API_KEY")
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-
-# Safety checks to fail early if variables are missing
-if not ENTSOE_API_KEY:
-    raise ValueError("Missing ENTSOE_API_KEY environment variable!")
-if not GCP_PROJECT_ID:
-    raise ValueError("Missing GCP_PROJECT_ID environment variable!")
-
-# 2. Use the secrets in your client initializations
-entsoe_client = EntsoePandasClient(api_key=ENTSOE_API_KEY)
-
-# BigQuery automatically finds the authentication credentials set by GitHub Actions
-bq_client = bigquery.Client(project=GCP_PROJECT_ID)
-
-DATASET_ID = "raw_swiss_energy"               # Dataset created in step 1
-TARGET_TABLE = f"{GCP_PROJECT_ID}.{DATASET_ID}.raw_entsoe_load"
-TEMP_STAGING_TABLE = f"{GCP_PROJECT_ID}.{DATASET_ID}.stg_temp_api_load"
-
-COUNTRY_CODE = "CH"  # Switzerland Grid Area Code
+DATASET_ID = "raw_swiss_energy"
+COUNTRY_CODE = "CH"  # Switzerland
 TIMEZONE = "Europe/Zurich"
 
-if not ENTSOE_API_KEY:
-    raise ValueError("Missing ENTSOE_API_KEY environment variable.")
+# Swiss Interconnectors (Grid zones connected to Switzerland)
+NEIGHBOR_COUNTRIES = ["DE_LU", "FR", "IT", "AT"]
+
+if not ENTSOE_API_KEY or not GCP_PROJECT_ID:
+    raise ValueError("Missing required environment variables (ENTSOE_API_KEY / GCP_PROJECT_ID)")
+
+client_entsoe = EntsoePandasClient(api_key=ENTSOE_API_KEY)
+client_bq = bigquery.Client(project=GCP_PROJECT_ID)
+
+# Define date range (Yesterday midnight to today midnight local time)
+now_swiss = pd.Timestamp.now(tz=TIMEZONE)
+start_dt = (now_swiss - pd.Timedelta(days=1)).floor('D')
+end_dt = now_swiss.floor('D')
+
+print(f"--- Fetching ENTSO-E data for {start_dt.date()} ---")
+
+# Helper function to run a BigQuery MERGE transaction
+def run_bq_merge(df: pd.DataFrame, temp_table: str, merge_sql: str):
+    job_config = bigquery.LoadJobConfig(write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE)
+    load_job = client_bq.load_table_from_dataframe(df, temp_table, job_config=job_config)
+    load_job.result()
+    query_job = client_bq.query(merge_sql)
+    query_job.result()
+
 
 # ------------------------------------------------------------------------------
-# 2. FETCH DATA FROM ENTSO-E API
+# DATASET 1: ACTUAL & FORECAST LOAD
 # ------------------------------------------------------------------------------
-def fetch_entsoe_data():
-    """Fetches yesterday's actual and forecasted grid load for Switzerland."""
-    client = EntsoePandasClient(api_key=ENTSOE_API_KEY)
-    
-    # Define date range (Yesterday midnight to today midnight in Swiss local time)
-    now_swiss = pd.Timestamp.now(tz=TIMEZONE)
-    start = (now_swiss - pd.Timedelta(days=1)).floor('D')
-    end = now_swiss.floor('D')
+def process_load():
+    print("Processing Grid Load...")
+    actual = client_entsoe.query_load(COUNTRY_CODE, start=start_dt, end=end_dt)
+    forecast = client_entsoe.query_load_forecast(COUNTRY_CODE, start=start_dt, end=end_dt)
 
-    print(f"Fetching ENTSO-E data for {COUNTRY_CODE} from {start} to {end}...")
+    if isinstance(actual, pd.DataFrame): actual = actual.squeeze()
+    if isinstance(forecast, pd.DataFrame): forecast = forecast.squeeze()
 
-    # Query API
-    actual_load = client.query_load(COUNTRY_CODE, start=start, end=end)
-    forecast_load = client.query_load_forecast(COUNTRY_CODE, start=start, end=end)
-
-    # Ensure inputs are Series for clean concat (handles 1-col DataFrames safely)
-    if isinstance(actual_load, pd.DataFrame):
-        actual_load = actual_load.squeeze()
-    if isinstance(forecast_load, pd.DataFrame):
-        forecast_load = forecast_load.squeeze()
-
-    # Concatenate side-by-side along the DatetimeIndex
-    df = pd.concat([actual_load, forecast_load], axis=1)
+    df = pd.concat([actual, forecast], axis=1)
     df.columns = ['actual_load', 'forecasted_load']
-
-    # Reset index so timestamp becomes a regular column
-    df = df.reset_index()
-    df.rename(columns={df.columns[0]: 'raw_timestamp'}, inplace=True)
+    df = df.reset_index().rename(columns={df.columns[0]: 'raw_timestamp'})
     df['area_code'] = COUNTRY_CODE
-
-    # Convert timestamp index to UTC formatted string for BigQuery
     df['raw_timestamp'] = df['raw_timestamp'].dt.tz_convert('UTC').dt.strftime('%Y-%m-%d %H:%M:%S UTC')
 
-    print(f"Retrieved {len(df)} hourly records successfully.")
-    return df
-
-# ------------------------------------------------------------------------------
-# 3. IDEMPOTENT LOAD INTO BIGQUERY (STAGING -> MERGE)
-# ------------------------------------------------------------------------------
-def load_to_bigquery(df: pd.DataFrame):
-    """Loads DataFrame into a temp BigQuery table and runs an atomic MERGE."""
-    bq_client = bigquery.Client(project=GCP_PROJECT_ID)
-
-    # Step A: Write data to temporary staging table (truncates existing temp table)
-    job_config = bigquery.LoadJobConfig(
-        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE
-    )
+    temp_table = f"{GCP_PROJECT_ID}.{DATASET_ID}.stg_temp_load"
+    target_table = f"{GCP_PROJECT_ID}.{DATASET_ID}.raw_entsoe_load"
     
-    print(f"Writing payload to temporary table: {TEMP_STAGING_TABLE}...")
-    load_job = bq_client.load_table_from_dataframe(
-        df, TEMP_STAGING_TABLE, job_config=job_config
-    )
-    load_job.result()  # Wait for upload to complete
-
-    # Step B: Perform Atomic MERGE into partitioned destination table
-    merge_query = f"""
-    MERGE INTO `{TARGET_TABLE}` AS target
+    sql = f"""
+    MERGE INTO `{target_table}` T
     USING (
-      SELECT 
-        TIMESTAMP(raw_timestamp) AS timestamp_utc,
-        area_code,
-        CAST(actual_load AS NUMERIC) AS actual_load_mw,
-        CAST(forecasted_load AS NUMERIC) AS forecasted_load_mw
-      FROM `{TEMP_STAGING_TABLE}`
-    ) AS source
-    ON target.timestamp_utc = source.timestamp_utc 
-    AND target.area_code = source.area_code
-
-    WHEN MATCHED THEN
-      UPDATE SET 
-        actual_load_mw = source.actual_load_mw,
-        forecasted_load_mw = source.forecasted_load_mw,
-        ingested_at = CURRENT_TIMESTAMP()
-
-    WHEN NOT MATCHED THEN
-      INSERT (timestamp_utc, area_code, actual_load_mw, forecasted_load_mw, ingested_at)
-      VALUES (source.timestamp_utc, source.area_code, source.actual_load_mw, source.forecasted_load_mw, CURRENT_TIMESTAMP());
+      SELECT TIMESTAMP(raw_timestamp) AS timestamp_utc, area_code,
+             CAST(actual_load AS NUMERIC) AS actual_load_mw,
+             CAST(forecasted_load AS NUMERIC) AS forecasted_load_mw
+      FROM `{temp_table}`
+    ) S ON T.timestamp_utc = S.timestamp_utc AND T.area_code = S.area_code
+    WHEN MATCHED THEN UPDATE SET actual_load_mw = S.actual_load_mw, forecasted_load_mw = S.forecasted_load_mw, ingested_at = CURRENT_TIMESTAMP()
+    WHEN NOT MATCHED THEN INSERT (timestamp_utc, area_code, actual_load_mw, forecasted_load_mw, ingested_at)
+    VALUES (S.timestamp_utc, S.area_code, S.actual_load_mw, S.forecasted_load_mw, CURRENT_TIMESTAMP());
     """
+    run_bq_merge(df, temp_table, sql)
+    print("✓ Load data merged successfully.")
 
-    print("Executing BigQuery MERGE transaction...")
-    query_job = bq_client.query(merge_query)
-    query_job.result()  # Wait for query execution
+
+# ------------------------------------------------------------------------------
+# DATASET 2: GENERATION BY FUEL TYPE
+# ------------------------------------------------------------------------------
+def process_generation():
+    print("Processing Generation Mix...")
+    gen_df = client_entsoe.query_generation(COUNTRY_CODE, start=start_dt, end=end_dt)
     
-    print("Successfully merged data into production BigQuery raw table!")
+    # Flatten multi-level column names if returned by entsoe-py
+    if isinstance(gen_df.columns, pd.MultiIndex):
+        gen_df = gen_df.xs('Actual Aggregated', axis=1, level=1, drop_level=True)
+
+    # Melt dataframe from wide (fuel types as columns) to long format
+    df_long = gen_df.reset_index().rename(columns={gen_df.index.name or gen_df.columns[0]: 'raw_timestamp'})
+    df_long = pd.melt(df_long, id_vars=['raw_timestamp'], var_name='production_type', value_name='actual_generation_mw')
+    
+    df_long['area_code'] = COUNTRY_CODE
+    df_long['raw_timestamp'] = df_long['raw_timestamp'].dt.tz_convert('UTC').dt.strftime('%Y-%m-%d %H:%M:%S UTC')
+    df_long.dropna(subset=['actual_generation_mw'], inplace=True)
+
+    temp_table = f"{GCP_PROJECT_ID}.{DATASET_ID}.stg_temp_gen"
+    target_table = f"{GCP_PROJECT_ID}.{DATASET_ID}.raw_entsoe_generation"
+
+    sql = f"""
+    MERGE INTO `{target_table}` T
+    USING (
+      SELECT TIMESTAMP(raw_timestamp) AS timestamp_utc, area_code, production_type,
+             CAST(actual_generation_mw AS NUMERIC) AS actual_generation_mw
+      FROM `{temp_table}`
+    ) S ON T.timestamp_utc = S.timestamp_utc AND T.area_code = S.area_code AND T.production_type = S.production_type
+    WHEN MATCHED THEN UPDATE SET actual_generation_mw = S.actual_generation_mw, ingested_at = CURRENT_TIMESTAMP()
+    WHEN NOT MATCHED THEN INSERT (timestamp_utc, area_code, production_type, actual_generation_mw, ingested_at)
+    VALUES (S.timestamp_utc, S.area_code, S.production_type, S.actual_generation_mw, CURRENT_TIMESTAMP());
+    """
+    run_bq_merge(df_long, temp_table, sql)
+    print("✓ Generation data merged successfully.")
+
 
 # ------------------------------------------------------------------------------
-# MAIN EXECUTION
+# DATASET 3: CROSS-BORDER PHYSICAL FLOWS
 # ------------------------------------------------------------------------------
+def process_cross_border_flows():
+    print("Processing Cross-Border Flows...")
+    flow_records = []
+
+    for neighbor in NEIGHBOR_COUNTRIES:
+        # Imports to CH
+        try:
+            imports = client_entsoe.query_crossborder_flows(neighbor, COUNTRY_CODE, start=start_dt, end=end_dt)
+            if isinstance(imports, pd.DataFrame): imports = imports.squeeze()
+            for ts, val in imports.items():
+                flow_records.append({'raw_timestamp': ts, 'out_area_code': neighbor, 'in_area_code': COUNTRY_CODE, 'flow_mw': val})
+        except Exception as e:
+            print(f"Warning: Could not fetch flows {neighbor} -> {COUNTRY_CODE}: {e}")
+
+        # Exports from CH
+        try:
+            exports = client_entsoe.query_crossborder_flows(COUNTRY_CODE, neighbor, start=start_dt, end=end_dt)
+            if isinstance(exports, pd.DataFrame): exports = exports.squeeze()
+            for ts, val in exports.items():
+                flow_records.append({'raw_timestamp': ts, 'out_area_code': COUNTRY_CODE, 'in_area_code': neighbor, 'flow_mw': val})
+        except Exception as e:
+            print(f"Warning: Could not fetch flows {COUNTRY_CODE} -> {neighbor}: {e}")
+
+    df_flows = pd.DataFrame(flow_records)
+    df_flows['raw_timestamp'] = df_flows['raw_timestamp'].dt.tz_convert('UTC').dt.strftime('%Y-%m-%d %H:%M:%S UTC')
+    df_flows.dropna(subset=['flow_mw'], inplace=True)
+
+    temp_table = f"{GCP_PROJECT_ID}.{DATASET_ID}.stg_temp_flows"
+    target_table = f"{GCP_PROJECT_ID}.{DATASET_ID}.raw_entsoe_cross_border_flow"
+
+    sql = f"""
+    MERGE INTO `{target_table}` T
+    USING (
+      SELECT TIMESTAMP(raw_timestamp) AS timestamp_utc, out_area_code, in_area_code,
+             CAST(flow_mw AS NUMERIC) AS flow_mw
+      FROM `{temp_table}`
+    ) S ON T.timestamp_utc = S.timestamp_utc AND T.out_area_code = S.out_area_code AND T.in_area_code = S.in_area_code
+    WHEN MATCHED THEN UPDATE SET flow_mw = S.flow_mw, ingested_at = CURRENT_TIMESTAMP()
+    WHEN NOT MATCHED THEN INSERT (timestamp_utc, out_area_code, in_area_code, flow_mw, ingested_at)
+    VALUES (S.timestamp_utc, S.out_area_code, S.in_area_code, S.flow_mw, CURRENT_TIMESTAMP());
+    """
+    run_bq_merge(df_flows, temp_table, sql)
+    print("✓ Cross-border flows merged successfully.")
+
+
 if __name__ == "__main__":
-    df_load = fetch_entsoe_data()
-    if not df_load.empty:
-        load_to_bigquery(df_load)
-    else:
-        print("No data received from ENTSO-E API.")
+    process_load()
+    process_generation()
+    process_cross_border_flows()
