@@ -1,0 +1,33 @@
+version: 2
+
+sources:
+  - name: entsoe
+    database: "{{ env_var('DBT_BIGQUERY_PROJECT', target.project) }}"
+    schema: raw_swiss_energy
+    tables:
+      - name: raw_entsoe_load
+        description: "Hourly electricity load (actual and forecasted) for Switzerland."
+        columns:
+          - name: timestamp_utc
+            tests:
+              - not_null
+          - name: area_code
+            tests:
+              - not_null
+
+      - name: raw_entsoe_generation
+        description: "Aggregated electricity generation by fuel/production type."
+        columns:
+          - name: timestamp_utc
+            tests:
+              - not_null
+          - name: production_type
+            tests:
+              - not_null
+
+      - name: raw_entsoe_cross_border_flow
+        description: "Physical electricity exchange between Switzerland and adjacent grid zones."
+        columns:
+          - name: timestamp_utc
+            tests:
+              - not_null

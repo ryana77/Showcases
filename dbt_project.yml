@@ -2,7 +2,7 @@ name: 'Showcases'
 version: '1.0.0'
 config-version: 2
 
-model-paths: ["iowa_liquor_sales/models"]
+model-paths: ["iowa_liquor_sales/models", "swiss_energy_pipeline/models"]
 test-paths: ["iowa_liquor_sales/tests"]
 seed-paths: ["iowa_liquor_sales/seeds"]
 macro-paths: ["macros"]
